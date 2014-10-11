@@ -73,12 +73,15 @@
                            :remote-pc nil
                            :local-stream nil})
               (will-mount [_]
-                          (create-rtc-peers owner)
-                          (get-user-media owner))
+                          (create-rtc-peers owner))
               (render [_]
                       (dom/div
                         (dom/div {:class "row" :style {:margin-top "5px"}}
                                  (dom/div {:class "col-md-8 col-md-offset-2" :style {:text-align "center"} :ref "wrapper"}
+                                          (dom/button {:class "btn btn-primary"
+                                                       :on-click #(get-user-media owner)
+                                                       :disabled false}
+                                                      "Initialize")
                                           (dom/button {:class "btn btn-primary"
                                                        :on-click #(initiate-call owner)
                                                        :disabled false}
