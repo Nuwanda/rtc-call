@@ -5,10 +5,7 @@
             [cljs.core.async :refer [chan]]
             [rtc-call.video-display :as video]))
 
-(enable-console-print!)
-
-(defonce app-state (atom {:offer nil
-                          :events (chan)}))
+(defonce app-state (atom {}))
 
 (defn main []
   (om/root video/call-view
