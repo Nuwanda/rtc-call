@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="Leiningen: com.facebook/react:0.11.1">
+    <CLASSES>
+      <root url="jar://$MAVEN_REPOSITORY$/com/facebook/react/0.11.1/react-0.11.1.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>
