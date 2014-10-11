@@ -1,9 +1,0 @@
-<component name="libraryTable">
-  <library name="Leiningen: weasel:0.4.0-20140813.205417-2">
-    <CLASSES>
-      <root url="jar://$MAVEN_REPOSITORY$/weasel/weasel/0.4.0-SNAPSHOT/weasel-0.4.0-SNAPSHOT.jar!/" />
-    </CLASSES>
-    <JAVADOC />
-    <SOURCES />
-  </library>
-</component>

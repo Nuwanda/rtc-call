@@ -1,9 +1,0 @@
-<component name="libraryTable">
-  <library name="Leiningen: prismatic/plumbing:0.3.2">
-    <CLASSES>
-      <root url="jar://$MAVEN_REPOSITORY$/prismatic/plumbing/0.3.2/plumbing-0.3.2.jar!/" />
-    </CLASSES>
-    <JAVADOC />
-    <SOURCES />
-  </library>
-</component>
