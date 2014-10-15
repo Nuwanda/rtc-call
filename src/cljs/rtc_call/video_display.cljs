@@ -79,16 +79,13 @@
                         (dom/div {:class "row" :style {:margin-top "5px"}}
                                  (dom/div {:class "col-md-8 col-md-offset-2" :style {:text-align "center"} :ref "wrapper"}
                                           (dom/button {:class "btn btn-primary"
-                                                       :on-click #(get-user-media owner)
-                                                       :disabled false}
+                                                       :on-click #(get-user-media owner)}
                                                       "Initialize")
                                           (dom/button {:class "btn btn-primary"
-                                                       :on-click #(initiate-call owner)
-                                                       :disabled false}
+                                                       :on-click #(initiate-call owner)}
                                                       "Start Call")
                                           (dom/button {:class "btn btn-primary"
-                                                       :on-click #(stop-call owner)
-                                                       :disabled false}
+                                                       :on-click #(stop-call owner)}
                                                       "End Call")
                                           (dom/br nil)
                                           (dom/br nil))))))
