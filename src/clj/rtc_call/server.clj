@@ -12,19 +12,28 @@
             [chord.http-kit :refer [wrap-websocket-handler]]
             [clojure.core.async :refer [<! >! chan go-loop put!]]))
 
-(def db (atom {}))
+(def clients (atom {}))
 
 (deftemplate page
   (io/resource "index.html") [] [:body] (if is-dev? inject-devmode-html identity))
 
-(defn- handle-message [ws-ch {:keys [id] :as msg}]
-  (if (nil? id)
+(defn- store-channel [id ch]
+  (when-not (contains? @clients id)
+    (swap! clients assoc id ch)))
+
+(defn- send-message [msg to from]
+  (if-let [ch (get @clients to)]
+    (put! ch msg)
+    (put! from {:error "Destination id not found on server"})))
+
+(defn- handle-message [ws-ch {:keys [id client-id] :as msg}]
+  (if (and (nil? id) (nil? client-id))
     (prn (str "Got poorly formatted message: " msg))
-    (let [{:keys [get set]} msg]
-      (cond
-        get (put! ws-ch (clojure.core/get @db id))
-        set (swap! db assoc id (:data set))
-        :else (prn (str "Got poorly formatted message: " msg))))))
+    (let [{:keys [data]} msg]
+      (store-channel client-id ws-ch)
+      (if (nil? data)
+        (prn (str "Got poorly formatted message: " msg))
+        (send-message data id ws-ch)))))
 
 (defn ws-handler [{:keys [ws-channel]}]
   (go-loop []

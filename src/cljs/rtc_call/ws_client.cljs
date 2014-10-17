@@ -7,20 +7,19 @@
             [chord.client :refer [ws-ch]]))
 
 (defn- receive-message [owner]
-  (let [ws-ch (om/get-state owner :ws-ch)
-        id    (om/get-state owner :id)
-        msg   {:id id :get true}]
-    (go
-      (>! ws-ch msg)
+  (let [ws-ch (om/get-state owner :ws-ch)]
+    (go-loop []
       (let [msg (<! ws-ch)]
         (.log js/console (str "Got message: " (:message msg)))
-        (om/set-state! owner :text (:message msg))))))
+        (om/set-state! owner :text (:message msg)))
+      (recur))))
 
 (defn- send-message [owner]
-  (let [ws-ch (om/get-state owner :ws-ch)
-        id    (om/get-state owner :id)
-        data  (om/get-state owner :text)
-        msg   {:id id :set {:data data}}]
+  (let [ws-ch     (om/get-state owner :ws-ch)
+        id        (om/get-state owner :id)
+        data      (om/get-state owner :text)
+        client-id (om/get-state owner :client-id)
+        msg       {:id id :data data :client-id client-id}]
     (go
       (.log js/console (str "Sent: " msg))
       (>! ws-ch msg))))
@@ -32,14 +31,17 @@
               (init-state [_]
                           {:ws-ch nil
                            :text "something here"
-                           :id "0"})
+                           :id "0"
+                           :client-id (str (rand-int 100))})
               (did-mount [_]
                          (go
                            (let [{:keys [ws-channel error]}
                                  (<! (ws-ch "ws://localhost:8080/ws"))]
                              (if error
                                (.log js/console (str "error opening ws-channel: " error))
-                               (om/set-state! owner :ws-ch ws-channel)))))
+                               (do
+                                 (om/set-state! owner :ws-ch ws-channel)
+                                 (receive-message owner))))))
               (render-state [_ {:keys [id text]}]
                       (dom/div {:class "row"}
                                (dom/div {:style {:text-align "center" :margin-top "5px"}
@@ -60,7 +62,4 @@
                                         (dom/div {:class "btn-group"}
                                                  (dom/button {:class "btn btn-primary"
                                                               :on-click #(send-message owner)}
-                                                             "Send")
-                                                 (dom/button {:class "btn btn-primary"
-                                                              :on-click #(receive-message owner)}
-                                                             "Receive"))))))
+                                                             "Send"))))))
