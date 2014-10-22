@@ -19,7 +19,8 @@
                  [weasel "0.4.0-SNAPSHOT"]
                  [leiningen "2.5.0"]
                  [http-kit "2.1.19"]
-                 [prismatic/om-tools "0.3.4" :exclusions [org.clojure/clojure]]]
+                 [prismatic/om-tools "0.3.6" :exclusions [org.clojure/clojure]]
+                 [jarohen/chord "0.4.2" :exclusions [org.clojure/clojure]]]
 
   :plugins [[lein-cljsbuild "1.0.3"]
             [lein-environ "1.0.0"]]

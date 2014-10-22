@@ -3,11 +3,19 @@
             [om-tools.dom :as dom :include-macros true]
             [om-tools.core :refer-macros [defcomponent]]
             [cljs.core.async :refer [chan]]
-            [rtc-call.video-display :as video]))
+            [rtc-call.video-display :as video]
+            [rtc-call.ws-client :as ws]))
 
-(defonce app-state (atom {}))
+(def app-state (atom {:call-in-msgs (chan)
+                      :call-out-msgs (chan)}))
+
+(defcomponent main-view [data owner]
+              (render [_]
+                      (dom/div
+                        (om/build video/call-view data)
+                        (om/build ws/ws-client data))))
 
 (defn main []
-  (om/root video/call-view
+  (om/root main-view
            app-state
            {:target (. js/document (getElementById "app"))}))
