@@ -6,33 +6,50 @@
             [cljs.core.async :refer [<! put!]]
             [chord.client :refer [ws-ch]]))
 
-(defn- receive-message [owner]
-  (let [ws-ch (om/get-state owner :ws-ch)]
+(defn- receive-from-server [data owner]
+  (let [ws-ch (om/get-state owner :ws-ch)
+        in-ch (:call-in-msgs @data)]
     (go-loop []
       (let [msg (<! ws-ch)]
-        (.log js/console (str "Got message: " (:message msg)))
-        (om/set-state! owner :text (:message msg)))
+        (.log js/console (str "Got from server - message: " (:message msg)))
+        (put! in-ch (:message msg)))
       (recur))))
 
-(defn- send-message [owner]
+(defn- send-to-server [owner dest desc type]
   (let [ws-ch     (om/get-state owner :ws-ch)
-        id        (om/get-state owner :id)
-        data      (om/get-state owner :text)
-        client-id (om/get-state owner :client-id)
-        msg       {:id id :data data :client-id client-id}]
-    (go
-      (.log js/console (str "Sent: " msg))
-      (>! ws-ch msg))))
+        src       (om/get-state owner :src-id)
+        msg       {:src src :desc desc :type type :dest dest}]
+    (.log js/console (str "Sent: " msg))
+    (put! ws-ch msg)))
 
-(defn handle-change [owner ref e]
+(defn- send-registration [owner]
+  (let [ws-ch (om/get-state owner :ws-ch)
+        src   (om/get-state owner :src-id)
+        msg   {:type :reg :src src}]
+    (.log js/console (str "Sent: " msg))
+    (put! ws-ch msg)))
+
+(defn- receive-from-client [data owner]
+  (let [ch (:call-out-msgs @data)]
+    (go-loop []
+             (let [{:keys [type desc dest] :as msg} (<! ch)]
+               (.log js/console (str "Got from client : " msg))
+               (if (nil? type)
+                 (.log js/console (str "Client sending poorly formatted message: " msg))
+                 (if (= type :reg)
+                   (send-registration owner)
+                   (if (nil? desc)
+                     (.log js/console (str "Client sending poorly formatted message: " msg))
+                     (send-to-server owner dest desc type)))))
+             (recur))))
+
+(defn- handle-change [owner ref e]
   (om/set-state! owner ref (.. e -target -value)))
 
 (defcomponent ws-client [data owner]
               (init-state [_]
                           {:ws-ch nil
-                           :text "something here"
-                           :id "0"
-                           :client-id (str (rand-int 100))})
+                           :src-id (str (rand-int 100))})
               (did-mount [_]
                          (go
                            (let [{:keys [ws-channel error]}
@@ -41,25 +58,7 @@
                                (.log js/console (str "error opening ws-channel: " error))
                                (do
                                  (om/set-state! owner :ws-ch ws-channel)
-                                 (receive-message owner))))))
+                                 (receive-from-server data owner)
+                                 (receive-from-client data owner))))))
               (render-state [_ {:keys [id text]}]
-                      (dom/div {:class "row"}
-                               (dom/div {:style {:text-align "center" :margin-top "5px"}
-                                         :class "col-md-4 col-md-offset-4"}
-                                        (dom/input {:class "form-control"
-                                                    :type "text"
-                                                    :style {:text-align "center"}
-                                                    :value id
-                                                    :on-change #(handle-change owner :id %)}
-                                                   nil)
-                                        (dom/input {:class "form-control"
-                                                    :type "text"
-                                                    :style {:text-align "center"}
-                                                    :value text
-                                                    :on-change #(handle-change owner :text %)}
-                                                   nil)
-                                        (dom/br)
-                                        (dom/div {:class "btn-group"}
-                                                 (dom/button {:class "btn btn-primary"
-                                                              :on-click #(send-message owner)}
-                                                             "Send"))))))
+                      (dom/div)))

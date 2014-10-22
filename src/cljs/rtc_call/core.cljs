@@ -6,12 +6,16 @@
             [rtc-call.video-display :as video]
             [rtc-call.ws-client :as ws]))
 
-(def test-channel (chan))
+(def app-state (atom {:call-in-msgs (chan)
+                      :call-out-msgs (chan)}))
 
-(defonce app-state (atom {:call-in-msgs test-channel
-                          :call-out-msgs test-channel}))
+(defcomponent main-view [data owner]
+              (render [_]
+                      (dom/div
+                        (om/build video/call-view data)
+                        (om/build ws/ws-client data))))
 
 (defn main []
-  (om/root ws/ws-client
+  (om/root main-view
            app-state
            {:target (. js/document (getElementById "app"))}))

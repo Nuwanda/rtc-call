@@ -21,19 +21,22 @@
   (when-not (contains? @clients id)
     (swap! clients assoc id ch)))
 
-(defn- send-message [msg to from]
+(defn- send-message [msg to from-ch]
   (if-let [ch (get @clients to)]
     (put! ch msg)
-    (put! from {:error "Destination id not found on server"})))
+    (put! from-ch {:error "Destination id not found on server"})))
 
-(defn- handle-message [ws-ch {:keys [id client-id] :as msg}]
-  (if (and (nil? id) (nil? client-id))
+(defn- handle-message [ws-ch {:keys [src dest desc type] :as msg}]
+  (prn (str "Client: " @clients))
+  (if (or (nil? src) (nil? type))
     (prn (str "Got poorly formatted message: " msg))
-    (let [{:keys [data]} msg]
-      (store-channel client-id ws-ch)
-      (if (nil? data)
+    (if (= type :reg)
+      (store-channel src ws-ch)
+      (if (or (nil? desc) (nil? dest))
         (prn (str "Got poorly formatted message: " msg))
-        (send-message data id ws-ch)))))
+        (do
+          (store-channel src ws-ch)
+          (send-message {:desc desc :type type :src src} dest ws-ch))))))
 
 (defn ws-handler [{:keys [ws-channel]}]
   (go-loop []
@@ -41,7 +44,7 @@
              (if error
                (prn (format "Error: '%s'." (pr-str error)))
                (do
-                 (prn (format "Received: '%s' at %s." (pr-str message) (Date.)))
+                 (prn (format "Received: '%s' at %s" (pr-str message) (Date.)))
                  (handle-message ws-channel message)))
              (recur))))
 
