@@ -4,7 +4,8 @@
             [om-tools.dom :as dom :include-macros true]
             [om-tools.core :refer-macros [defcomponent]]
             [cljs.core.async :refer [<! put!]]
-            [rtc-call.servers :refer [server-config]]))
+            [rtc-call.servers :refer [server-config]]
+            [rtc.adapter]))
 
 (defn- create-video [owner media]
   (let [node (js/document.createElement "video" )

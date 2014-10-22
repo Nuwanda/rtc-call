@@ -6,6 +6,10 @@
             [cljs.core.async :refer [<! put!]]
             [chord.client :refer [ws-ch]]))
 
+#_(if (System/getenv :is-dev)
+  (def HOST "ws://localhost:8080/ws")
+  (def HOST "ws://rtc-call.herokuapp.com/ws"))
+
 (defn- receive-from-server [data owner]
   (let [ws-ch (om/get-state owner :ws-ch)
         in-ch (:call-in-msgs @data)]
@@ -53,7 +57,7 @@
               (did-mount [_]
                          (go
                            (let [{:keys [ws-channel error]}
-                                 (<! (ws-ch "ws://localhost:8080/ws"))]
+                                 (<! (ws-ch "ws://rtc-call.herokuapp.com/ws"))]
                              (if error
                                (.log js/console (str "error opening ws-channel: " error))
                                (do

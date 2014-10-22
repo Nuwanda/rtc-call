@@ -35,6 +35,8 @@
                                         :source-map    "resources/public/js/out.js.map"
                                         :preamble      ["react/react.min.js"]
                                         :externs       ["react/externs/react.js"]
+                                        :foreign-libs  [{:file "resources/public/js/vendor/adapter.js"
+                                                         :provides ["rtc.adapter"]}]
                                         :optimizations :none
                                         :pretty-print  true}}}}
 
@@ -52,7 +54,9 @@
                        :omit-source true
                        :aot :all
                        :cljsbuild {:builds {:app
-                                            {:source-paths ["env/prod/cljs"]
-                                             :compiler
-                                             {:optimizations :advanced
-                                              :pretty-print false}}}}}})
+                                             {:source-paths ["env/prod/cljs"]
+                                              :compiler
+                                                            {:optimizations :simple
+                                                             :foreign-libs  [{:file "resources/public/js/vendor/adapter.js"
+                                                                              :provides ["rtc.adapter"]}]
+                                                             :pretty-print  false}}}}}})
