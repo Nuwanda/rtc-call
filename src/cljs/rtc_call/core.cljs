@@ -12,8 +12,8 @@
 (defcomponent main-view [data owner]
               (render [_]
                       (dom/div
-                        (om/build video/call-view data)
-                        (om/build ws/ws-client data))))
+                        (om/build ws/ws-client data)
+                        (om/build video/call-view data))))
 
 (defn main []
   (om/root main-view

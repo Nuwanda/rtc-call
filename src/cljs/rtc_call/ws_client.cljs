@@ -4,11 +4,8 @@
             [om-tools.dom :as dom :include-macros true]
             [om-tools.core :refer-macros [defcomponent]]
             [cljs.core.async :refer [<! put!]]
-            [chord.client :refer [ws-ch]]))
-
-#_(if (System/getenv :is-dev)
-  (def HOST "ws://localhost:8080/ws")
-  (def HOST "ws://rtc-call.herokuapp.com/ws"))
+            [chord.client :refer [ws-ch]]
+            [rtc-call.util :as util]))
 
 (defn- receive-from-server [data owner]
   (let [ws-ch (om/get-state owner :ws-ch)
@@ -31,6 +28,7 @@
         src   (om/get-state owner :src-id)
         msg   {:type :reg :src src}]
     (.log js/console (str "Sent: " msg))
+    (om/set-state! owner :logged true)
     (put! ws-ch msg)))
 
 (defn- receive-from-client [data owner]
@@ -53,16 +51,18 @@
 (defcomponent ws-client [data owner]
               (init-state [_]
                           {:ws-ch nil
-                           :src-id (str (rand-int 100))})
+                           :src-id (str (rand-int 100))
+                           :logged false})
               (did-mount [_]
                          (go
                            (let [{:keys [ws-channel error]}
-                                 (<! (ws-ch "ws://rtc-call.herokuapp.com/ws"))]
+                                 (<! (ws-ch "ws://nuwanda.no-ip.biz:5000/ws"))]
                              (if error
                                (.log js/console (str "error opening ws-channel: " error))
                                (do
                                  (om/set-state! owner :ws-ch ws-channel)
                                  (receive-from-server data owner)
                                  (receive-from-client data owner))))))
-              (render-state [_ {:keys [id text]}]
-                      (dom/div)))
+              (render-state [_ {:keys [src-id logged]}]
+                      (dom/div {:class "page-header" :style (util/display logged)}
+                        (dom/h1 {:style {:text-align "center"}} "Your id: " (dom/small (str src-id))))))
