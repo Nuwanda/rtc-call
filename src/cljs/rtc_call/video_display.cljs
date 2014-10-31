@@ -5,7 +5,7 @@
             [om-tools.core :refer-macros [defcomponent]]
             [cljs.core.async :refer [<! put! chan]]
             [rtc-call.servers :refer [SERVERS]]
-            #_[rtc.adapter]
+            [rtc.adapter]
             [rtc-call.util :as util]))
 
 (defn- create-video [owner media]
