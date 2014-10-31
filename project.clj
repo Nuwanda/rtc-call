@@ -52,6 +52,7 @@
              :uberjar {:hooks [leiningen.cljsbuild]
                        :env {:production true}
                        :omit-source true
+                       :main rtc-call.server
                        :aot :all
                        :cljsbuild {:builds {:app
                                              {:source-paths ["env/prod/cljs"]

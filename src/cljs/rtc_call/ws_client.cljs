@@ -56,7 +56,7 @@
               (did-mount [_]
                          (go
                            (let [{:keys [ws-channel error]}
-                                 (<! (ws-ch "ws://nuwanda.no-ip.biz:5000/ws"))]
+                                 (<! (ws-ch "ws://localhost:5000/ws"))]
                              (if error
                                (.log js/console (str "error opening ws-channel: " error))
                                (do
@@ -64,5 +64,5 @@
                                  (receive-from-server data owner)
                                  (receive-from-client data owner))))))
               (render-state [_ {:keys [src-id logged]}]
-                      (dom/div {:class "page-header" :style (util/display logged)}
+                      (dom/div {:class "page-header" :style {:display (util/display logged)}}
                         (dom/h1 {:style {:text-align "center"}} "Your id: " (dom/small (str src-id))))))

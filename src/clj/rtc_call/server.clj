@@ -10,7 +10,8 @@
             [environ.core :refer [env]]
             [org.httpkit.server :refer [run-server]]
             [chord.http-kit :refer [wrap-websocket-handler]]
-            [clojure.core.async :refer [<! >! chan go-loop put!]]))
+            [clojure.core.async :refer [<! >! chan go-loop put!]])
+  (:gen-class :main true))
 
 (def clients (atom {}))
 
@@ -64,7 +65,7 @@
   (defonce ^:private server
     (do
       (if is-dev? (start-figwheel))
-      (let [port (Integer. (or port (env :port) 8080))]
+      (let [port (Integer. (or port (env :port) 5000))]
         (print "Starting web server on port" port ".\n")
         (run-server http-handler {:port port
                           :join? false}))))
