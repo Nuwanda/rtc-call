@@ -57,7 +57,7 @@
                        :cljsbuild {:builds {:app
                                              {:source-paths ["env/prod/cljs"]
                                               :compiler
-                                                            {:optimizations :none
+                                                            {:optimizations :simple
                                                              :foreign-libs  [{:file "resources/public/js/vendor/adapter.js"
                                                                               :provides ["rtc.adapter"]}]
                                                              :pretty-print  false}}}}}})
