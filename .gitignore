@@ -3,12 +3,12 @@
 /checkouts
 pom.xml
 pom.xml.asc
-*.jar
-*.class
 *.iml
 /.idea
 /.lein-*
 /.nrepl-port
-/resources/public/js/
+/resources/public/js/out/
+/resources/public/js/app.js
+/resources/public/js/out.js.map
 /out
 /.repl
