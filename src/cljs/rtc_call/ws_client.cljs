@@ -56,7 +56,7 @@
               (did-mount [_]
                          (go
                            (let [{:keys [ws-channel error]}
-                                 (<! (ws-ch "ws://rtc-call.herokuapp.com/ws"))]
+                                 (<! (ws-ch "ws://localhost:5000/ws"))]
                              (if error
                                (.log js/console (str "error opening ws-channel: " error))
                                (do

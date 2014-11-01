@@ -10,7 +10,8 @@
             [environ.core :refer [env]]
             [org.httpkit.server :refer [run-server]]
             [chord.http-kit :refer [wrap-websocket-handler]]
-            [clojure.core.async :refer [<! >! chan go-loop put!]])
+            [clojure.core.async :refer [<! >! chan go-loop put!]]
+            [clojure.set :refer [map-invert]])
   (:gen-class :main true))
 
 (def clients (atom {}))
@@ -28,7 +29,7 @@
     (put! from-ch {:error "Destination id not found on server"})))
 
 (defn- handle-message [ws-ch {:keys [src dest desc type] :as msg}]
-  (prn (str "Client: " @clients))
+  (prn (str "Connected clients: " @clients))
   (if (or (nil? src) (nil? type))
     (prn (str "Got poorly formatted message: " msg))
     (if (= type :reg)
@@ -41,13 +42,20 @@
 
 (defn ws-handler [{:keys [ws-channel]}]
   (go-loop []
-           (when-let [{:keys [message error]} (<! ws-channel)]
-             (if error
-               (prn (format "Error: '%s'." (pr-str error)))
-               (do
-                 (prn (format "Received: '%s' at %s" (pr-str message) (Date.)))
-                 (handle-message ws-channel message)))
-             (recur))))
+           (if-let [{:keys [message error]} (<! ws-channel)]
+             (do
+               (if error
+                 (prn (format "Error: '%s'." (pr-str error)))
+                 (do
+                   (prn (format "Received: '%s' at %s" (pr-str message) (Date.)))
+                   (handle-message ws-channel message)))
+               (recur))
+             (let [inv-clients (map-invert @clients)
+                   removed     (dissoc inv-clients ws-channel)
+                   new-clients (map-invert removed)]
+               (reset! clients new-clients)
+               (prn "Client left.")
+               (prn (str "Connected clients: " @clients))))))
 
 (defroutes routes
   (resources "/")
