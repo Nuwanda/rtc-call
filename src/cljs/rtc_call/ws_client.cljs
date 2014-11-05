@@ -13,20 +13,22 @@
     (go-loop []
       (let [msg (<! ws-ch)]
         (.log js/console (str "Got from server - message: " (:message msg)))
-        (put! in-ch (:message msg)))
+        (let [mess (:message msg)
+              type (:type mess)]
+          (if (= type :reg-ack)
+            (om/set-state! owner :src-id (:id mess))
+            (put! in-ch (:message msg)))))
       (recur))))
 
 (defn- send-to-server [owner dest desc type]
   (let [ws-ch     (om/get-state owner :ws-ch)
-        src       (om/get-state owner :src-id)
-        msg       {:src src :desc desc :type type :dest dest}]
+        msg       {:desc desc :type type :dest dest}]
     (.log js/console (str "Sent: " msg))
     (put! ws-ch msg)))
 
 (defn- send-registration [owner]
   (let [ws-ch (om/get-state owner :ws-ch)
-        src   (om/get-state owner :src-id)
-        msg   {:type :reg :src src}]
+        msg   {:type :reg}]
     (.log js/console (str "Sent: " msg))
     (om/set-state! owner :logged true)
     (put! ws-ch msg)))
@@ -50,13 +52,13 @@
 
 (defcomponent ws-client [data owner]
               (init-state [_]
-                          {:ws-ch nil
-                           :src-id (str (rand-int 100))
+                          {:ws-ch  nil
+                           :src-id "none yet"
                            :logged false})
               (did-mount [_]
                          (go
                            (let [{:keys [ws-channel error]}
-                                 (<! (ws-ch "ws://rtc-call.herokuapp.com/ws"))]
+                                 (<! (ws-ch "ws://localhost:5000/ws"))]
                              (if error
                                (.log js/console (str "error opening ws-channel: " error))
                                (do

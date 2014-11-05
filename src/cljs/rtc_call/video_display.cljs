@@ -6,7 +6,8 @@
             [cljs.core.async :refer [<! put! chan]]
             [rtc-call.servers :refer [SERVERS]]
             [rtc.adapter]
-            [rtc-call.util :as util]))
+            [rtc-call.util :as util]
+            [goog.dom :as gdom]))
 
 (defn- create-video [owner media]
   (let [node (js/document.createElement "video" )
@@ -18,6 +19,13 @@
       (. js/window (attachMediaStream node stream))
       (. js/window (attachMediaStream node media)))))
 
+(defn- remove-videos []
+  (let [videos (gdom/getElementsByTagNameAndClass "video")
+        local  (.item videos 0)
+        remote (.item videos 1)]
+    (gdom/removeNode local)
+    (gdom/removeNode remote)))
+
 (defn- got-media [owner stream]
   (let [pc (om/get-state owner :pc)]
     (.addStream pc stream)
@@ -25,9 +33,9 @@
 
 (defn- get-user-media [owner]
   (let [constraints #js {:video true :audio true}
-        on-success  #(got-media owner %)
+        got-media   (partial got-media owner)
         on-error    #(js/alert "Error getting media stream")]
-    (js/getUserMedia constraints on-success on-error)))
+    (js/getUserMedia constraints got-media on-error)))
 
 (defn- initialize [data owner]
   (let [o-ch (:call-out-msgs @data)]
@@ -51,13 +59,14 @@
     (put! (:call-out-msgs @data) {:type type :desc js-desc :dest dest})))
 
 (defn- got-remote-candidate [owner msg]
-  (let [in-call (om/get-state owner :in-call)
-        pc      (om/get-state owner :pc)
-        cand    (js/RTCIceCandidate. #js {:sdpMLineIndex (.-label msg)
-                                          :candidate (.-cand msg)})]
+  (let [in-call  (om/get-state owner :in-call)
+        pc       (om/get-state owner :pc)
+        cand     (js/RTCIceCandidate. #js {:sdpMLineIndex (.-label msg)
+                                           :candidate (.-cand msg)})
+        add-cand #(conj % cand)]
     (if in-call
       (.addIceCandidate pc cand)
-      (om/update-state! owner :candidates #(conj % cand)))))
+      (om/update-state! owner :candidates add-cand))))
 
 (defn- unqueue-candidates [owner]
   (let [cands (om/get-state owner :candidates)
@@ -111,8 +120,30 @@
         (om/set-state! owner :remote-id nil)))
     (om/set-state! owner :request false)))
 
-(defn- stop-call [owner]
-  (js/alert "not yet implemented"))
+(defn- clear-state [owner]
+  (om/set-state! owner :pc nil)
+  (om/set-state! owner :caller false)
+  (om/set-state! owner :remote-id "")
+  (om/set-state! owner :request false)
+  (om/set-state! owner :in-call false)
+  (om/set-state! owner :candidates []))
+
+(defn- stop-call [data owner]
+  (let [pc      (om/get-state owner :pc)
+        streams (js->clj (.getLocalStreams pc))]
+    (doall (map #(.stop %) streams))
+    (.close pc))
+  (clear-state owner)
+  (remove-videos)
+  (create-rtc-peer data owner))
+
+(defn- hang-up [data owner]
+  (let [o-ch    (:call-out-msgs @data)
+        id      (om/get-state owner :remote-id)
+        to-json #(js/JSON.stringify % nil 2)
+        msg     {:type :hang-up :dest id :desc (to-json #js [])}]
+    (put! o-ch msg))
+  (stop-call data owner))
 
 (defn- handle-input [owner e]
   (om/set-state! owner :remote-id (.. e -target -value)))
@@ -133,44 +164,52 @@
                                   (let [{:keys [type desc src] :as msg} (<! (:call-in-msgs @data))
                                         parsed-desc (js/JSON.parse desc)]
                                     (cond
-                                      (= type :offer) (do
-                                                        (.log js/console (str "Got offer: " parsed-desc))
-                                                        (handle-call data owner src parsed-desc))
-                                      (= type :answer) (do
-                                                         (.log js/console (str "Got answer: " parsed-desc))
-                                                         (om/set-state! owner :remote-id src)
-                                                         (got-remote-description owner data parsed-desc))
+                                      (= type :offer)     (do
+                                                            (.log js/console (str "Got offer: " parsed-desc))
+                                                            (handle-call data owner src parsed-desc))
+                                      (= type :answer)    (do
+                                                            (.log js/console (str "Got answer: " parsed-desc))
+                                                            (om/set-state! owner :remote-id src)
+                                                            (got-remote-description owner data parsed-desc))
                                       (= type :candidate) (do
                                                             (.log js/console (str "Got candidate: " parsed-desc))
                                                             (got-remote-candidate owner parsed-desc))
+                                      (= type :hang-up)   (do
+                                                            (.log js/console (str "Got hang-up"))
+                                                            (stop-call data owner))
                                       :else (.log js/console (str "Unexpected message: " msg))))
                                   (recur)))
-              (render-state [_ {:keys [remote-id request req-ch]}]
-                            (dom/div
-                              (dom/div {:class "row" :style {:margin-top "5px"}}
-                                       (dom/div {:ref "wrapper" :style {:text-align "center"}}
-                                                (dom/div {:class "col-md-2 col-md-offset-4" :style {:text-align "center"}}
-                                                         (dom/button {:class    "btn btn-primary"
-                                                                      :on-click #(initialize data owner)}
-                                                                     "Initialize"))
-                                                (dom/div {:class "col-md-2" :style {:text-align "center"}}
-                                                         (dom/div {:class "input-group"}
-                                                                  (dom/input {:type "text"
-                                                                              :class "form-control"
-                                                                              :placeholder "ID to Call"
-                                                                              :on-change #(handle-input owner %)}
-                                                                             (dom/span {:class "input-group-btn"}
-                                                                                       (dom/button {:class    "btn btn-default"
-                                                                                                    :on-click #(initiate-call owner data)}
-                                                                                                   "Call")))))
-                                                (dom/div {:class "col-md-4 col-md-offset-4"
-                                                          :style {:text-align "center"
-                                                                  :display (util/display request)}}
-                                                         (dom/h3 (str "Incoming call from id: " remote-id))
-                                                         (dom/div {:class "btn-group"}
-                                                                  (dom/button {:class    "btn btn-primary"
-                                                                               :on-click #(put! req-ch true)}
-                                                                              "Accept")
-                                                                  (dom/button {:class    "btn btn-primary"
-                                                                               :on-click #(put! req-ch false)}
-                                                                              "Reject"))))))))
+              (render-state [_ {:keys [remote-id request req-ch in-call remote-id]}]
+                            (dom/div {:class "row" :style {:margin-top "5px"}}
+                                     (dom/div {:ref "wrapper" :style {:text-align "center"}}
+                                              (dom/div {:class "col-md-2 col-md-offset-4" :style {:text-align "center"}}
+                                                       (dom/button {:class    "btn btn-primary"
+                                                                    :on-click #(hang-up data owner)
+                                                                    :style {:display (util/display in-call)}}
+                                                                   "Hang up")
+                                                       (dom/button {:class    "btn btn-primary"
+                                                                    :on-click #(initialize data owner)
+                                                                    :style {:display (util/display (not in-call))}}
+                                                                   "Initialize"))
+                                              (dom/div {:class "col-md-2" :style {:text-align "center"}}
+                                                       (dom/div {:class "input-group"}
+                                                                (dom/input {:type        "text"
+                                                                            :class       "form-control"
+                                                                            :placeholder "ID to Call"
+                                                                            :value       remote-id
+                                                                            :on-change   #(handle-input owner %)}
+                                                                           (dom/span {:class "input-group-btn"}
+                                                                                     (dom/button {:class    "btn btn-default"
+                                                                                                  :on-click #(initiate-call owner data)}
+                                                                                                 "Call")))))
+                                              (dom/div {:class "col-md-4 col-md-offset-4"
+                                                        :style {:text-align "center"
+                                                                :display    (util/display request)}}
+                                                       (dom/h3 (str "Incoming call from id: " remote-id))
+                                                       (dom/div {:class "btn-group"}
+                                                                (dom/button {:class    "btn btn-primary"
+                                                                             :on-click #(put! req-ch true)}
+                                                                            "Accept")
+                                                                (dom/button {:class    "btn btn-primary"
+                                                                             :on-click #(put! req-ch false)}
+                                                                            "Reject")))))))

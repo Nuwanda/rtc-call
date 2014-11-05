@@ -10,7 +10,8 @@
             [environ.core :refer [env]]
             [org.httpkit.server :refer [run-server]]
             [chord.http-kit :refer [wrap-websocket-handler]]
-            [clojure.core.async :refer [<! >! chan go-loop put!]])
+            [clojure.core.async :refer [<! >! chan go-loop put!]]
+            [clojure.set :refer [map-invert]])
   (:gen-class :main true))
 
 (def clients (atom {}))
@@ -27,12 +28,14 @@
     (put! ch msg)
     (put! from-ch {:error "Destination id not found on server"})))
 
-(defn- handle-message [ws-ch {:keys [src dest desc type] :as msg}]
-  (prn (str "Client: " @clients))
-  (if (or (nil? src) (nil? type))
+(defn- handle-message [src ws-ch {:keys [dest desc type] :as msg}]
+  (prn (str "Connected clients: " @clients))
+  (if (nil? type)
     (prn (str "Got poorly formatted message: " msg))
     (if (= type :reg)
-      (store-channel src ws-ch)
+      (do
+        (store-channel src ws-ch)
+        (send-message {:type :reg-ack :id src} src ws-ch))
       (if (or (nil? desc) (nil? dest))
         (prn (str "Got poorly formatted message: " msg))
         (do
@@ -40,14 +43,22 @@
           (send-message {:desc desc :type type :src src} dest ws-ch))))))
 
 (defn ws-handler [{:keys [ws-channel]}]
-  (go-loop []
-           (when-let [{:keys [message error]} (<! ws-channel)]
-             (if error
-               (prn (format "Error: '%s'." (pr-str error)))
-               (do
-                 (prn (format "Received: '%s' at %s" (pr-str message) (Date.)))
-                 (handle-message ws-channel message)))
-             (recur))))
+  (loop [id (str (rand-int 100))]
+    (if-not (contains? @clients id)
+      (go-loop []
+        (if-let [{:keys [message error]} (<! ws-channel)]
+          (do
+            (if error
+              (prn (format "Error: '%s'." (pr-str error)))
+              (do
+                (prn (format "Received: '%s' at %s from %s" (pr-str message) (Date.) id))
+                (handle-message id ws-channel message)))
+            (recur))
+          (let [remove #(dissoc % id)]
+            (swap! clients remove)
+            (prn "Client left.")
+            (prn (str "Connected clients: " @clients)))))
+      (recur (str (rand-int 100))))))
 
 (defroutes routes
   (resources "/")
