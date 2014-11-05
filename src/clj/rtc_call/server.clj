@@ -51,7 +51,7 @@
             (if error
               (prn (format "Error: '%s'." (pr-str error)))
               (do
-                (prn (format "Received: '%s' at %s" (pr-str message) (Date.)))
+                (prn (format "Received: '%s' at %s from %s" (pr-str message) (Date.) id))
                 (handle-message id ws-channel message)))
             (recur))
           (let [remove #(dissoc % id)]

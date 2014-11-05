@@ -137,6 +137,14 @@
   (remove-videos)
   (create-rtc-peer data owner))
 
+(defn- hang-up [data owner]
+  (let [o-ch    (:call-out-msgs @data)
+        id      (om/get-state owner :remote-id)
+        to-json #(js/JSON.stringify % nil 2)
+        msg     {:type :hang-up :dest id :desc (to-json #js [])}]
+    (put! o-ch msg))
+  (stop-call data owner))
+
 (defn- handle-input [owner e]
   (om/set-state! owner :remote-id (.. e -target -value)))
 
@@ -156,16 +164,19 @@
                                   (let [{:keys [type desc src] :as msg} (<! (:call-in-msgs @data))
                                         parsed-desc (js/JSON.parse desc)]
                                     (cond
-                                      (= type :offer) (do
-                                                        (.log js/console (str "Got offer: " parsed-desc))
-                                                        (handle-call data owner src parsed-desc))
-                                      (= type :answer) (do
-                                                         (.log js/console (str "Got answer: " parsed-desc))
-                                                         (om/set-state! owner :remote-id src)
-                                                         (got-remote-description owner data parsed-desc))
+                                      (= type :offer)     (do
+                                                            (.log js/console (str "Got offer: " parsed-desc))
+                                                            (handle-call data owner src parsed-desc))
+                                      (= type :answer)    (do
+                                                            (.log js/console (str "Got answer: " parsed-desc))
+                                                            (om/set-state! owner :remote-id src)
+                                                            (got-remote-description owner data parsed-desc))
                                       (= type :candidate) (do
                                                             (.log js/console (str "Got candidate: " parsed-desc))
                                                             (got-remote-candidate owner parsed-desc))
+                                      (= type :hang-up)   (do
+                                                            (.log js/console (str "Got hang-up"))
+                                                            (stop-call data owner))
                                       :else (.log js/console (str "Unexpected message: " msg))))
                                   (recur)))
               (render-state [_ {:keys [remote-id request req-ch in-call remote-id]}]
@@ -173,7 +184,7 @@
                                      (dom/div {:ref "wrapper" :style {:text-align "center"}}
                                               (dom/div {:class "col-md-2 col-md-offset-4" :style {:text-align "center"}}
                                                        (dom/button {:class    "btn btn-primary"
-                                                                    :on-click #(stop-call data owner)
+                                                                    :on-click #(hang-up data owner)
                                                                     :style {:display (util/display in-call)}}
                                                                    "Hang up")
                                                        (dom/button {:class    "btn btn-primary"
