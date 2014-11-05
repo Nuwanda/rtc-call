@@ -28,12 +28,14 @@
     (put! ch msg)
     (put! from-ch {:error "Destination id not found on server"})))
 
-(defn- handle-message [ws-ch {:keys [src dest desc type] :as msg}]
+(defn- handle-message [src ws-ch {:keys [dest desc type] :as msg}]
   (prn (str "Connected clients: " @clients))
-  (if (or (nil? src) (nil? type))
+  (if (nil? type)
     (prn (str "Got poorly formatted message: " msg))
     (if (= type :reg)
-      (store-channel src ws-ch)
+      (do
+        (store-channel src ws-ch)
+        (send-message {:type :reg-ack :id src} src ws-ch))
       (if (or (nil? desc) (nil? dest))
         (prn (str "Got poorly formatted message: " msg))
         (do
@@ -41,21 +43,22 @@
           (send-message {:desc desc :type type :src src} dest ws-ch))))))
 
 (defn ws-handler [{:keys [ws-channel]}]
-  (go-loop []
-           (if-let [{:keys [message error]} (<! ws-channel)]
-             (do
-               (if error
-                 (prn (format "Error: '%s'." (pr-str error)))
-                 (do
-                   (prn (format "Received: '%s' at %s" (pr-str message) (Date.)))
-                   (handle-message ws-channel message)))
-               (recur))
-             (let [inv-clients (map-invert @clients)
-                   removed     (dissoc inv-clients ws-channel)
-                   new-clients (map-invert removed)]
-               (reset! clients new-clients)
-               (prn "Client left.")
-               (prn (str "Connected clients: " @clients))))))
+  (loop [id (str (rand-int 100))]
+    (if-not (contains? @clients id)
+      (go-loop []
+        (if-let [{:keys [message error]} (<! ws-channel)]
+          (do
+            (if error
+              (prn (format "Error: '%s'." (pr-str error)))
+              (do
+                (prn (format "Received: '%s' at %s" (pr-str message) (Date.)))
+                (handle-message id ws-channel message)))
+            (recur))
+          (let [remove #(dissoc % id)]
+            (swap! clients remove)
+            (prn "Client left.")
+            (prn (str "Connected clients: " @clients)))))
+      (recur (str (rand-int 100))))))
 
 (defroutes routes
   (resources "/")
